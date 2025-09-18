@@ -1,39 +1,122 @@
-using GameSpace.Models;
+using GameSpace.Areas.MiniGame.Models;
+using GameSpace.Areas.MiniGame.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
+    [Authorize(Policy = "CanManageShopping")] // Requires Shopping permission
     public class AdminWalletController : Controller
     {
-        private readonly GameSpacedatabaseContext _context;
+        private readonly IMiniGameAdminService _adminService;
+        private readonly IMiniGameAdminAuthService _authService;
 
-        public AdminWalletController(GameSpacedatabaseContext context)
+        public AdminWalletController(IMiniGameAdminService adminService, IMiniGameAdminAuthService authService)
         {
-            _context = context;
+            _adminService = adminService;
+            _authService = authService;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index(WalletQueryModel query)
         {
-            return View();
+            var wallets = await _adminService.GetUserWalletsAsync(query);
+            return View(wallets);
         }
 
-        public class WalletTransactionModel
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdjustPoints(AdminAdjustUserPointsModel model)
         {
-            [Required(ErrorMessage = "用戶ID為必填")]
-            public int UserId { get; set; }
+            if (ModelState.IsValid)
+            {
+                var success = await _adminService.AdjustUserPointsAsync(model.UserId, model.PointsChange, model.Description ?? "");
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "點數調整成功";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "點數調整失敗";
+                }
+            }
+            return RedirectToAction("Index");
+        }
 
-            [Required(ErrorMessage = "金額為必填")]
-            [Range(0.01, double.MaxValue, ErrorMessage = "金額必須大於0")]
-            public decimal Amount { get; set; }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> IssueCoupon(AdminAdjustUserCouponModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var success = await _adminService.IssueCouponToUserAsync(model.UserId, model.CouponId, model.Quantity);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "優惠券發放成功";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "優惠券發放失敗";
+                }
+            }
+            return RedirectToAction("Index");
+        }
 
-            [Required(ErrorMessage = "交易類型為必填")]
-            [StringLength(50, ErrorMessage = "交易類型長度不能超過50個字元")]
-            public string TransactionType { get; set; } = string.Empty;
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveCoupon(int userCouponId)
+        {
+            var success = await _adminService.RemoveUserCouponAsync(userCouponId);
+            if (success)
+            {
+                TempData["SuccessMessage"] = "優惠券移除成功";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "優惠券移除失敗";
+            }
+            return RedirectToAction("Index");
+        }
 
-            [StringLength(500, ErrorMessage = "備註長度不能超過500個字元")]
-            public string? Description { get; set; }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> IssueEVoucher(AdminAdjustUserEVoucherModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var success = await _adminService.IssueEVoucherToUserAsync(model.UserId, model.EVoucherId, model.Quantity);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "電子禮券發放成功";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "電子禮券發放失敗";
+                }
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveEVoucher(int userEVoucherId)
+        {
+            var success = await _adminService.RemoveUserEVoucherAsync(userEVoucherId);
+            if (success)
+            {
+                TempData["SuccessMessage"] = "電子禮券移除成功";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "電子禮券移除失敗";
+            }
+            return RedirectToAction("Index");
+        }
+
+        public async Task<IActionResult> WalletHistory(WalletQueryModel query)
+        {
+            var history = await _adminService.GetWalletHistoryAsync(query);
+            return View(history);
         }
     }
 }

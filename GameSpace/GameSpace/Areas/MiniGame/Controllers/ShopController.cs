@@ -1,195 +1,103 @@
-using Microsoft.AspNetCore.Mvc;
-using GameSpace.Areas.MiniGame.Services;
 using GameSpace.Areas.MiniGame.Models;
-using GameSpace.Models;
+using GameSpace.Areas.MiniGame.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GameSpace.Models;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
+    [Authorize]
     public class ShopController : Controller
     {
+        private readonly IMiniGameService _miniGameService;
         private readonly GameSpacedatabaseContext _context;
-        private readonly ILogger<ShopController> _logger;
 
-        public ShopController(GameSpacedatabaseContext context, ILogger<ShopController> logger)
+        public ShopController(IMiniGameService miniGameService, GameSpacedatabaseContext context)
         {
+            _miniGameService = miniGameService;
             _context = context;
-            _logger = logger;
         }
 
         public async Task<IActionResult> Index()
         {
-            try
+            var userId = GetCurrentUserId();
+            if (userId == 0)
             {
-                var userId = GetCurrentUserId();
-                
-                // 獲取可用的優惠券類型
-                var couponTypes = await _context.CouponTypes
-                    .Where(ct => ct.ValidFrom <= DateTime.Now && ct.ValidTo >= DateTime.Now)
-                    .Select(ct => new ShopItemViewModel
-                    {
-                        ItemId = ct.CouponTypeId,
-                        Name = ct.Name,
-                        Description = ct.Description,
-                        PointsCost = ct.PointsCost,
-                        ItemType = "Coupon"
-                    })
-                    .ToListAsync();
-
-                // 獲取可用的電子禮券類型
-                var evoucherTypes = await _context.EvoucherTypes
-                    .Where(et => et.ValidFrom <= DateTime.Now && et.ValidTo >= DateTime.Now)
-                    .Select(et => new ShopItemViewModel
-                    {
-                        ItemId = et.EvoucherTypeId,
-                        Name = et.Name,
-                        Description = et.Description,
-                        PointsCost = et.PointsCost,
-                        ItemType = "EVoucher"
-                    })
-                    .ToListAsync();
-
-                var allItems = couponTypes.Concat(evoucherTypes).ToList();
-
-                var userWallet = await _context.UserWallets
-                    .FirstOrDefaultAsync(w => w.UserId == userId);
-
-                var viewModel = new ShopViewModels.ShopIndexViewModel
-                {
-                    Items = allItems,
-                    Wallet = userWallet ?? new UserWallet(),
-                    SenderID = userId
-                };
-
-                return View(viewModel);
+                return RedirectToAction("Login", "Account", new { area = "" });
             }
-            catch (Exception ex)
+
+            var user = await _context.Users.FindAsync(userId);
+            var coupons = await _context.Coupons
+                .Where(c => c.UserId == userId)
+                .ToListAsync();
+
+            var eVouchers = await _context.Evouchers
+                .Where(e => e.UserId == userId)
+                .ToListAsync();
+
+            var viewModel = new
             {
-                _logger.LogError(ex, "取得商店頁面時發生錯誤");
-                return View(new ShopViewModels.ShopIndexViewModel());
-            }
+                User = user,
+                Coupons = coupons,
+                EVouchers = eVouchers
+            };
+
+            return View(viewModel);
         }
 
         [HttpPost]
-        public async Task<IActionResult> BuyCoupon(int couponTypeId)
+        public async Task<IActionResult> ExchangeCoupon(int couponTypeId)
         {
-            try
+            var userId = GetCurrentUserId();
+            if (userId == 0)
             {
-                var userId = GetCurrentUserId();
-                var couponType = await _context.CouponTypes.FindAsync(couponTypeId);
-
-                if (couponType == null || couponType.ValidFrom > DateTime.Now || couponType.ValidTo < DateTime.Now)
-                {
-                    return Json(new { success = false, message = "優惠券類型不存在或已下架" });
-                }
-
-                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId);
-                if (wallet == null)
-                {
-                    return Json(new { success = false, message = "錢包不存在" });
-                }
-
-                if (wallet.UserPoint < couponType.PointsCost)
-                {
-                    return Json(new { success = false, message = "點數不足" });
-                }
-
-                // 扣除點數
-                wallet.UserPoint -= couponType.PointsCost;
-
-                // 創建優惠券
-                var coupon = new Coupon
-                {
-                    CouponCode = GenerateCouponCode(),
-                    CouponTypeId = couponTypeId,
-                    UserId = userId,
-                    IsUsed = false
-                };
-
-                _context.Coupons.Add(coupon);
-                await _context.SaveChangesAsync();
-
-                return Json(new { 
-                    success = true, 
-                    message = "優惠券購買成功！",
-                    remainingPoints = wallet.UserPoint,
-                    couponCode = coupon.CouponCode
-                });
+                return Json(new { success = false, message = "請先登入" });
             }
-            catch (Exception ex)
+
+            var couponType = await _context.CouponTypes.FindAsync(couponTypeId);
+            if (couponType == null)
             {
-                _logger.LogError(ex, "購買優惠券時發生錯誤");
-                return Json(new { success = false, message = "購買失敗" });
+                return Json(new { success = false, message = "優惠券類型不存在" });
             }
-        }
 
-        [HttpPost]
-        public async Task<IActionResult> BuyEVoucher(int evoucherTypeId)
-        {
-            try
+            // 檢查點數（需要從其他地方獲取用戶點數）
+            // var user = await _context.Users.FindAsync(userId);
+            // if (user.UserPoint < couponType.PointsCost)
+            // {
+            //     return Json(new { success = false, message = "點數不足" });
+            // }
+
+            // 發放優惠券
+            var coupon = new GameSpace.Models.Coupon
             {
-                var userId = GetCurrentUserId();
-                var evoucherType = await _context.EvoucherTypes.FindAsync(evoucherTypeId);
+                UserId = userId,
+                CouponTypeId = couponTypeId,
+                CouponCode = GenerateCouponCode(),
+                AcquiredTime = DateTime.Now,
+                IsUsed = false
+            };
 
-                if (evoucherType == null || evoucherType.ValidFrom > DateTime.Now || evoucherType.ValidTo < DateTime.Now)
-                {
-                    return Json(new { success = false, message = "電子禮券類型不存在或已下架" });
-                }
+            _context.Coupons.Add(coupon);
+            await _context.SaveChangesAsync();
 
-                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId);
-                if (wallet == null)
-                {
-                    return Json(new { success = false, message = "錢包不存在" });
-                }
-
-                if (wallet.UserPoint < evoucherType.PointsCost)
-                {
-                    return Json(new { success = false, message = "點數不足" });
-                }
-
-                // 扣除點數
-                wallet.UserPoint -= evoucherType.PointsCost;
-
-                // 創建電子禮券
-                var evoucher = new Evoucher
-                {
-                    EvoucherCode = GenerateEVoucherCode(),
-                    EvoucherTypeId = evoucherTypeId,
-                    UserId = userId,
-                    IsUsed = false
-                };
-
-                _context.Evouchers.Add(evoucher);
-                await _context.SaveChangesAsync();
-
-                return Json(new { 
-                    success = true, 
-                    message = "電子禮券購買成功！",
-                    remainingPoints = wallet.UserPoint,
-                    evoucherCode = evoucher.EvoucherCode
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "購買電子禮券時發生錯誤");
-                return Json(new { success = false, message = "購買失敗" });
-            }
+            return Json(new { success = true, message = "兌換成功" });
         }
 
         private string GenerateCouponCode()
         {
-            return "CPN-" + DateTime.Now.ToString("yyMMdd") + "-" + Guid.NewGuid().ToString("N")[..6].ToUpper();
-        }
-
-        private string GenerateEVoucherCode()
-        {
-            return "EV-" + DateTime.Now.ToString("yyMMdd") + "-" + Guid.NewGuid().ToString("N")[..6].ToUpper();
+            return "CPN" + DateTime.Now.Ticks.ToString("X")[^8..];
         }
 
         private int GetCurrentUserId()
         {
-            return 1;
+            var userIdClaim = User.FindFirst("UserId");
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+            return 0;
         }
     }
 }

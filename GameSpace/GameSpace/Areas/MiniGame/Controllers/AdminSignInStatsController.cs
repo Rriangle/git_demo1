@@ -1,74 +1,85 @@
 using GameSpace.Areas.MiniGame.Models;
 using GameSpace.Areas.MiniGame.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
+    [Authorize(Policy = "CanUserStatus")] // Requires UserStatus permission
     public class AdminSignInStatsController : Controller
     {
         private readonly IMiniGameAdminService _adminService;
+        private readonly IMiniGameAdminAuthService _authService;
 
-        public AdminSignInStatsController(IMiniGameAdminService adminService)
+        public AdminSignInStatsController(IMiniGameAdminService adminService, IMiniGameAdminAuthService authService)
         {
             _adminService = adminService;
+            _authService = authService;
         }
 
         public async Task<IActionResult> Index(SignInQueryModel query)
         {
-            var signInStats = await _adminService.GetSignInStatsAsync(query);
-            var signInSummary = await _adminService.GetSignInSummaryAsync();
-            
-            var model = new SignInStatsViewModel
-            {
-                SignInStats = signInStats,
-                Summary = signInSummary,
-                Query = query ?? new SignInQueryModel()
-            };
+            var stats = await _adminService.GetSignInStatsAsync(query);
+            return View(stats);
+        }
 
+        public async Task<IActionResult> SetRule()
+        {
+            var rule = await _adminService.GetSignInRuleAsync();
+            return View(rule);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetRule(SignInRuleUpdateModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var success = await _adminService.UpdateSignInRuleAsync(model);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "簽到規則更新成功";
+                    return RedirectToAction("SetRule");
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "簽到規則更新失敗";
+                }
+            }
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> ToggleSignIn(SignInToggleModel model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddRecord(int userId, DateTime signInDate)
         {
-            if (ModelState.IsValid)
+            var success = await _adminService.AddUserSignInRecordAsync(userId, signInDate);
+            if (success)
             {
-                var success = await _adminService.ToggleSignInAsync(model.UserId, model.Action == "add");
-                
-                if (success)
-                {
-                    TempData["SuccessMessage"] = $"簽到記錄{(model.Action == "add" ? "新增" : "移除")}成功";
-                    return RedirectToAction(nameof(Index));
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = $"簽到記錄{(model.Action == "add" ? "新增" : "移除")}失敗";
-                }
+                TempData["SuccessMessage"] = "簽到記錄新增成功";
             }
-
-            return RedirectToAction(nameof(Index));
+            else
+            {
+                TempData["ErrorMessage"] = "簽到記錄新增失敗";
+            }
+            return RedirectToAction("Index");
         }
 
         [HttpPost]
-        public async Task<IActionResult> BulkToggleSignIn(BulkSignInToggleModel model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveRecord(int userId, DateTime signInDate)
         {
-            if (ModelState.IsValid)
+            var success = await _adminService.RemoveUserSignInRecordAsync(userId, signInDate);
+            if (success)
             {
-                var success = await _adminService.BulkToggleSignInAsync(model.UserIds, model.Action == "add");
-                
-                if (success)
-                {
-                    TempData["SuccessMessage"] = $"批量{(model.Action == "add" ? "新增" : "移除")}簽到記錄成功";
-                    return RedirectToAction(nameof(Index));
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = $"批量{(model.Action == "add" ? "新增" : "移除")}簽到記錄失敗";
-                }
+                TempData["SuccessMessage"] = "簽到記錄移除成功";
             }
-
-            return RedirectToAction(nameof(Index));
+            else
+            {
+                TempData["ErrorMessage"] = "簽到記錄移除失敗";
+            }
+            return RedirectToAction("Index");
         }
     }
 }

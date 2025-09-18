@@ -1,65 +1,95 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using GameSpace.Areas.MiniGame.Services;
 using GameSpace.Areas.MiniGame.Models;
-using GameSpace.Areas.MiniGame.Filters;
+using GameSpace.Areas.MiniGame.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
-    [Authorize(AuthenticationSchemes = "AdminCookie")]
-    [MiniGameModulePermission("Pet")]
+    [Authorize(Policy = "CanPet")] // Requires Pet permission
     public class AdminPetController : Controller
     {
         private readonly IMiniGameAdminService _adminService;
+        private readonly IMiniGameAdminAuthService _authService;
 
-        public AdminPetController(IMiniGameAdminService adminService)
+        public AdminPetController(IMiniGameAdminService adminService, IMiniGameAdminAuthService authService)
         {
             _adminService = adminService;
+            _authService = authService;
         }
 
         public async Task<IActionResult> Index(PetQueryModel query)
         {
-            if (query.PageNumber <= 0) query.PageNumber = 1;
-            if (query.PageNumber <= 0) query.PageNumber = 10;
-
             var pets = await _adminService.GetPetsAsync(query);
-            var petSummary = await _adminService.GetPetSummaryAsync();
-
-            var viewModel = new AdminPetIndexViewModel
-            {
-                Pets = pets,
-                PetSummary = petSummary,
-                Query = query
-            };
-
-            return View(viewModel);
+            return View(pets);
         }
 
-        public async Task<IActionResult> Details(int petId)
+        public async Task<IActionResult> SetRule()
         {
-            var petDetail = await _adminService.GetPetDetailAsync(petId);
-
-            var viewModel = new AdminPetDetailsViewModel
-            {
-                PetDetail = petDetail ?? new PetDetailReadModel()
-            };
-
-            return View(viewModel);
+            var rule = await _adminService.GetPetRuleAsync();
+            return View(rule);
         }
 
-        public async Task<IActionResult> Statistics()
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetRule(PetRuleUpdateModel model)
         {
-            var petSummary = await _adminService.GetPetSummaryAsync();
-            var pets = await _adminService.GetPetsAsync(new PetQueryModel { PageNumber = 10 });
-
-            var viewModel = new AdminPetStatisticsViewModel
+            if (ModelState.IsValid)
             {
-                Summary = petSummary,
-                TopPets = pets.Items.ToList()
-            };
+                var success = await _adminService.UpdatePetRuleAsync(model);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "寵物規則更新成功";
+                    return RedirectToAction("SetRule");
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "寵物規則更新失敗";
+                }
+            }
+            return View(model);
+        }
 
-            return View(viewModel);
+        public async Task<IActionResult> Detail(int petId)
+        {
+            var pet = await _adminService.GetPetDetailAsync(petId);
+            if (pet == null || pet.PetId == 0)
+            {
+                return NotFound();
+            }
+            return View(pet);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Update(int petId, PetUpdateModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var success = await _adminService.UpdatePetDetailsAsync(petId, model);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "寵物資料更新成功";
+                    return RedirectToAction("Detail", new { petId });
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "寵物資料更新失敗";
+                }
+            }
+            return RedirectToAction("Detail", new { petId });
+        }
+
+        public async Task<IActionResult> SkinColorChangeLogs(PetQueryModel query)
+        {
+            var logs = await _adminService.GetPetSkinColorChangeLogsAsync(query);
+            return View(logs);
+        }
+
+        public async Task<IActionResult> BackgroundColorChangeLogs(PetQueryModel query)
+        {
+            var logs = await _adminService.GetPetBackgroundColorChangeLogsAsync(query);
+            return View(logs);
         }
     }
 }

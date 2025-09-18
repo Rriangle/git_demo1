@@ -90,19 +90,4 @@ namespace GameSpace.Areas.MiniGame.Models
         public int PointsPerSkinChange { get; set; }
         public int PointsPerBackgroundChange { get; set; }
     }
-
-    public class GameRuleReadModel
-    {
-        public int RuleId { get; set; }
-        public int PointsPerGame { get; set; }
-        public int PointsPerWin { get; set; }
-        public int PointsPerLoss { get; set; }
-    }
-
-    public class GameRuleUpdateModel
-    {
-        public int PointsPerGame { get; set; }
-        public int PointsPerWin { get; set; }
-        public int PointsPerLoss { get; set; }
-    }
 }

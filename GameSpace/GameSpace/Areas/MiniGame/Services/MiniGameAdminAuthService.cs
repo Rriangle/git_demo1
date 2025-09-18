@@ -1,13 +1,11 @@
-using GameSpace.Models;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using GameSpace.Models;
 
 namespace GameSpace.Areas.MiniGame.Services
 {
-    /// <summary>
-    /// MiniGame Admin 認證服務實作
-    /// 支援不同模組權限檢查
-    /// </summary>
     public class MiniGameAdminAuthService : IMiniGameAdminAuthService
     {
         private readonly GameSpacedatabaseContext _context;
@@ -19,82 +17,146 @@ namespace GameSpace.Areas.MiniGame.Services
             _logger = logger;
         }
 
-        /// <summary>
-        /// 檢查管理員是否可以存取 MiniGame Admin 功能
-        /// 預設檢查 PetRightsManagement 權限（向後相容）
-        /// </summary>
-        /// <param name="managerId">管理員 ID</param>
-        /// <returns>true 表示具備 PetRightsManagement 權限</returns>
+        public async Task<bool> HasPermissionAsync(ClaimsPrincipal user, string permissionType)
+        {
+            if (!user.Identity?.IsAuthenticated ?? true)
+            {
+                return false;
+            }
+
+            var managerIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);
+            if (managerIdClaim == null || !int.TryParse(managerIdClaim.Value, out int managerId))
+            {
+                _logger.LogWarning("Manager ID claim not found or invalid for user: {UserName}", user.Identity?.Name);
+                return false;
+            }
+
+            var manager = await _context.ManagerData
+                .Include(m => m.ManagerRoles)
+                .FirstOrDefaultAsync(m => m.ManagerId == managerId);
+
+            if (manager == null)
+            {
+                _logger.LogWarning("Manager with ID {ManagerId} not found in database.", managerId);
+                return false;
+            }
+
+            // Check for specific permission based on permissionType
+            foreach (var managerRole in manager.ManagerRoles)
+            {
+                switch (permissionType)
+                {
+                    case "CanManageShopping":
+                        if (managerRole.ShoppingPermissionManagement == true) return true;
+                        break;
+                    case "CanAdmin":
+                        if (managerRole.AdministratorPrivilegesManagement == true) return true;
+                        break;
+                    case "CanMessage":
+                        if (managerRole.MessagePermissionManagement == true) return true;
+                        break;
+                    case "CanUserStatus":
+                        if (managerRole.UserStatusManagement == true) return true;
+                        break;
+                    case "CanPet":
+                        if (managerRole.PetRightsManagement == true) return true;
+                        break;
+                    case "CanCS":
+                        if (managerRole.CustomerService == true) return true;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            return false;
+        }
+
+        public async Task<bool> IsAdminAsync(ClaimsPrincipal user)
+        {
+            // A simple check if the user has any admin-level permission
+            return await HasPermissionAsync(user, "CanAdmin") ||
+                   await HasPermissionAsync(user, "CanManageShopping") ||
+                   await HasPermissionAsync(user, "CanMessage") ||
+                   await HasPermissionAsync(user, "CanUserStatus") ||
+                   await HasPermissionAsync(user, "CanPet") ||
+                   await HasPermissionAsync(user, "CanCS");
+        }
+
         public async Task<bool> CanAccessAsync(int managerId)
         {
-            return await CanAccessModuleAsync(managerId, "Pet");
+            var manager = await _context.ManagerData
+                .Include(m => m.ManagerRoles)
+                .FirstOrDefaultAsync(m => m.ManagerId == managerId);
+
+            if (manager == null)
+            {
+                return false;
+            }
+
+            // Check if manager has any admin permissions
+            return manager.ManagerRoles.Any(role => 
+                role.AdministratorPrivilegesManagement == true ||
+                role.ShoppingPermissionManagement == true ||
+                role.MessagePermissionManagement == true ||
+                role.UserStatusManagement == true ||
+                role.PetRightsManagement == true ||
+                role.CustomerService == true);
         }
 
-        /// <summary>
-        /// 檢查管理員是否具備指定模組權限
-        /// </summary>
-        /// <param name="managerId">管理員 ID</param>
-        /// <param name="module">模組名稱：Pet, UserWallet, UserSignIn, MiniGame</param>
-        /// <returns>true 表示具備權限，false 表示拒絕存取</returns>
-        public async Task<bool> CanAccessModuleAsync(int managerId, string module)
+        public async Task<bool> CanAccessModuleAsync(int managerId, string moduleName)
         {
-            try
+            var manager = await _context.ManagerData
+                .Include(m => m.ManagerRoles)
+                .FirstOrDefaultAsync(m => m.ManagerId == managerId);
+
+            if (manager == null)
             {
-                var hasPermission = module.ToLower() switch
+                return false;
+            }
+
+            // Check for specific module permission
+            foreach (var managerRole in manager.ManagerRoles)
+            {
+                switch (moduleName.ToLower())
                 {
-                    "pet" => await CheckPermissionAsync(managerId, mrp => mrp.PetRightsManagement),
-                    "userwallet" or "usersignin" or "minigame" => await CheckPermissionAsync(managerId, mrp => mrp.UserStatusManagement),
-                    _ => false
-                };
-
-                _logger.LogInformation("MiniGame 模組權限檢查: ManagerId={ManagerId}, Module={Module}, HasPermission={HasPermission}", 
-                    managerId, module, hasPermission);
-
-                return hasPermission;
+                    case "wallet":
+                    case "shopping":
+                        if (managerRole.ShoppingPermissionManagement == true) return true;
+                        break;
+                    case "admin":
+                        if (managerRole.AdministratorPrivilegesManagement == true) return true;
+                        break;
+                    case "message":
+                        if (managerRole.MessagePermissionManagement == true) return true;
+                        break;
+                    case "userstatus":
+                    case "signin":
+                        if (managerRole.UserStatusManagement == true) return true;
+                        break;
+                    case "pet":
+                        if (managerRole.PetRightsManagement == true) return true;
+                        break;
+                    case "cs":
+                    case "customerservice":
+                        if (managerRole.CustomerService == true) return true;
+                        break;
+                    default:
+                        break;
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "MiniGame 模組權限檢查失敗: ManagerId={ManagerId}, Module={Module}", managerId, module);
-                return false; // 預設拒絕存取
-            }
+
+            return false;
         }
 
-        /// <summary>
-        /// 檢查特定權限
-        /// </summary>
-        private async Task<bool> CheckPermissionAsync(int managerId, Func<ManagerRolePermission, bool?> permissionSelector)
+        public int GetCurrentManagerId(ClaimsPrincipal user)
         {
-            return await (from mr in _context.ManagerRolePermissions.AsNoTracking()
-                         join mrp in _context.ManagerRolePermissions.AsNoTracking()
-                           on mr.ManagerRoleId equals mrp.ManagerRoleId
-                         where mr.ManagerRoleId == managerId
-                         select mrp)
-                         .AnyAsync(mrp => permissionSelector(mrp) == true);
-        }
-
-        /// <summary>
-        /// 從 HttpContext 取得當前管理員 ID
-        /// </summary>
-        /// <param name="user">當前用戶 Principal</param>
-        /// <returns>管理員 ID，若無效則返回 null</returns>
-        public int? GetCurrentManagerId(ClaimsPrincipal user)
-        {
-            if (user?.Identity?.IsAuthenticated != true)
-                return null;
-
-            // 嘗試多種 claims 類型
-            var managerIdclaim = user.FindFirst("ManagerId") ?? 
-                                user.FindFirst("Manager_Id") ?? 
-                                user.FindFirst("sub") ?? 
-                                user.FindFirst("id") ??
-                                user.FindFirst(ClaimTypes.NameIdentifier);
-
-            if (managerIdclaim != null && int.TryParse(managerIdclaim.Value, out var managerId))
+            var managerIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);
+            if (managerIdClaim != null && int.TryParse(managerIdClaim.Value, out int managerId))
             {
                 return managerId;
             }
-
-            return null;
+            return 0;
         }
     }
 }

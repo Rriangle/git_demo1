@@ -78,8 +78,6 @@ namespace GameSpace.Areas.MiniGame.Models
         public string PetName { get; set; } = string.Empty;
         public int Level { get; set; }
         public int Experience { get; set; }
-        public string SkinColor { get; set; } = string.Empty;
-        public string BackgroundColor { get; set; } = string.Empty;
     }
 
     // 錢包相關模型

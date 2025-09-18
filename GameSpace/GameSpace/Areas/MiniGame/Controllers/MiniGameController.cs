@@ -1,178 +1,85 @@
-using Microsoft.AspNetCore.Mvc;
-using GameSpace.Areas.MiniGame.Services;
 using GameSpace.Areas.MiniGame.Models;
-using GameSpace.Models;
+using GameSpace.Areas.MiniGame.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GameSpace.Models;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
+    [Authorize]
     public class MiniGameController : Controller
     {
+        private readonly IMiniGameService _miniGameService;
         private readonly GameSpacedatabaseContext _context;
-        private readonly ILogger<MiniGameController> _logger;
 
-        public MiniGameController(GameSpacedatabaseContext context, ILogger<MiniGameController> logger)
+        public MiniGameController(IMiniGameService miniGameService, GameSpacedatabaseContext context)
         {
+            _miniGameService = miniGameService;
             _context = context;
-            _logger = logger;
         }
 
-        public async Task<IActionResult> Index()
+        public IActionResult Index()
         {
-            try
-            {
-                var userId = GetCurrentUserId();
-                
-                // 取得最近的遊戲記錄
-                var games = await _context.MiniGames
-                    .Include(g => g.User)
-                    .Where(g => g.Result == "Completed")
-                    .OrderByDescending(g => g.StartTime)
-                    .Take(10)
-                    .ToListAsync();
-
-                var userWallet = await _context.UserWallets
-                    .FirstOrDefaultAsync(w => w.UserId == userId);
-
-                var viewModel = new MiniGameIndexViewModel
-                {
-                    MiniGames = games,
-                    Pet = new Pet(),
-                    Wallet = userWallet ?? new UserWallet(),
-                    CanPlay = true,
-                    TodayGames = 0,
-                    RemainingGames = 5,
-                    SenderID = userId
-                };
-
-                return View(viewModel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "取得小遊戲頁面時發生錯誤");
-                return View(new MiniGameIndexViewModel());
-            }
+            return View();
         }
 
-        public async Task<IActionResult> Play()
+        public async Task<IActionResult> Pet()
         {
-            try
+            var userId = GetCurrentUserId();
+            if (userId == 0)
             {
-                var userId = GetCurrentUserId();
-                
-                // 取得用戶的寵物
-                var pet = await _context.Pets
-                    .FirstOrDefaultAsync(p => p.UserId == userId);
-
-                var userWallet = await _context.UserWallets
-                    .FirstOrDefaultAsync(w => w.UserId == userId);
-
-                var viewModel = new MiniGamePlayViewModel
-                {
-                    Pet = pet ?? new Pet(),
-                    Wallet = userWallet ?? new UserWallet(),
-                    SenderID = userId,
-                    Difficulty = 1
-                };
-
-                return View(viewModel);
+                return RedirectToAction("Login", "Account", new { area = "" });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "取得遊戲頁面時發生錯誤");
-                return View(new MiniGamePlayViewModel());
-            }
-        }
 
-        [HttpPost]
-        public async Task<IActionResult> StartGame(int petId, int level, int monsterCount, decimal speedMultiplier)
-        {
-            try
+            var pet = await _context.Pets
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            if (pet == null)
             {
-                var userId = GetCurrentUserId();
-                
-                // 創建遊戲記錄
-                var game = new GameSpace.Models.MiniGame
+                // 創建新寵物
+                pet = new GameSpace.Models.Pet
                 {
                     UserId = userId,
-                    PetId = petId,
-                    Level = level,
-                    MonsterCount = monsterCount,
-                    SpeedMultiplier = speedMultiplier,
-                    Result = "InProgress",
-                    StartTime = DateTime.Now,
-                    Aborted = false
+                    PetName = "我的寵物",
+                    Level = 1,
+                    Experience = 0,
+                    SkinColor = "Default",
+                    BackgroundColor = "Default",
+                    Hunger = 100,
+                    Mood = 100,
+                    Stamina = 100,
+                    Cleanliness = 100,
+                    Health = 100
                 };
-
-                _context.MiniGames.Add(game);
+                _context.Pets.Add(pet);
                 await _context.SaveChangesAsync();
+            }
 
-                return Json(new { 
-                    success = true, 
-                    playId = game.PlayId,
-                    message = "遊戲開始！"
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "開始遊戲時發生錯誤");
-                return Json(new { success = false, message = "開始遊戲失敗" });
-            }
+            return View(pet);
         }
 
         [HttpPost]
-        public async Task<IActionResult> EndGame(int playId, string result, int score, int expGained, int pointsGained)
+        public async Task<IActionResult> UpdatePetName(int petId, string petName)
         {
-            try
+            var pet = await _context.Pets.FindAsync(petId);
+            if (pet != null)
             {
-                var userId = GetCurrentUserId();
-                var game = await _context.MiniGames
-                    .FirstOrDefaultAsync(g => g.PlayId == playId && g.UserId == userId);
-
-                if (game == null)
-                {
-                    return Json(new { success = false, message = "遊戲記錄不存在" });
-                }
-
-                // 更新遊戲結果
-                game.Result = result;
-                game.EndTime = DateTime.Now;
-                game.ExpGained = expGained;
-                game.PointsGained = pointsGained;
-
-                // 如果遊戲成功，更新用戶錢包
-                if (result == "Completed")
-                {
-                    var wallet = await _context.UserWallets
-                        .FirstOrDefaultAsync(w => w.UserId == userId);
-                    
-                    if (wallet != null)
-                    {
-                        wallet.UserPoint += pointsGained;
-                    }
-                }
-
+                pet.PetName = petName;
                 await _context.SaveChangesAsync();
-
-                return Json(new { 
-                    success = true, 
-                    message = "遊戲結束！",
-                    finalScore = score,
-                    expGained = expGained,
-                    pointsGained = pointsGained
-                });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "結束遊戲時發生錯誤");
-                return Json(new { success = false, message = "結束遊戲失敗" });
-            }
+            return RedirectToAction("Pet");
         }
 
         private int GetCurrentUserId()
         {
-            return 1;
+            var userIdClaim = User.FindFirst("UserId");
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+            return 0;
         }
     }
 }

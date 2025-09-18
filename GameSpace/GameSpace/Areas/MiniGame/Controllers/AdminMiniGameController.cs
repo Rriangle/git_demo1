@@ -1,66 +1,63 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using GameSpace.Areas.MiniGame.Services;
 using GameSpace.Areas.MiniGame.Models;
-using GameSpace.Areas.MiniGame.Filters;
+using GameSpace.Areas.MiniGame.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
-    [Authorize(AuthenticationSchemes = "AdminCookie")]
-    [MiniGameModulePermission("MiniGame")]
+    [Authorize(Policy = "CanAdmin")] // Requires Admin permission
     public class AdminMiniGameController : Controller
     {
         private readonly IMiniGameAdminService _adminService;
+        private readonly IMiniGameAdminAuthService _authService;
 
-        public AdminMiniGameController(IMiniGameAdminService adminService)
+        public AdminMiniGameController(IMiniGameAdminService adminService, IMiniGameAdminAuthService authService)
         {
             _adminService = adminService;
+            _authService = authService;
         }
 
         public async Task<IActionResult> Index(GameQueryModel query)
         {
-            if (query.PageNumber <= 0) query.PageNumber = 1;
-            if (query.PageNumber <= 0) query.PageNumber = 10;
-
-            var gameRecords = await _adminService.GetGameRecordsAsync(query);
-            var gameSummary = await _adminService.GetGameSummaryAsync();
-
-            var viewModel = new AdminMiniGameIndexViewModel
-            {
-                GameRecords = gameRecords,
-                GameSummary = gameSummary,
-                Query = query
-            };
-
-            return View(viewModel);
+            var records = await _adminService.GetGameRecordsAsync(query);
+            return View(records);
         }
 
-        public async Task<IActionResult> Details(int playId)
+        public async Task<IActionResult> SetRule()
         {
-            var gameDetail = await _adminService.GetGameDetailAsync(playId);
-            var gameSummary = await _adminService.GetGameSummaryAsync();
-
-            var viewModel = new AdminMiniGameDetailsViewModel
-            {
-                GameDetail = gameDetail ?? new GameDetailReadModel()
-            };
-
-            return View(viewModel);
+            var rule = await _adminService.GetGameRuleAsync();
+            return View(rule);
         }
 
-        public async Task<IActionResult> Statistics()
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetRule(GameRuleUpdateModel model)
         {
-            var gameSummary = await _adminService.GetGameSummaryAsync();
-            var gameRecords = await _adminService.GetGameRecordsAsync(new GameQueryModel { PageNumber = 10 });
-
-            var viewModel = new AdminMiniGameStatisticsViewModel
+            if (ModelState.IsValid)
             {
-                Summary = gameSummary,
-                RecentGames = gameRecords.Items.ToList()
-            };
+                var success = await _adminService.UpdateGameRuleAsync(model);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "遊戲規則更新成功";
+                    return RedirectToAction("SetRule");
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "遊戲規則更新失敗";
+                }
+            }
+            return View(model);
+        }
 
-            return View(viewModel);
+        public async Task<IActionResult> Detail(int gameId)
+        {
+            var game = await _adminService.GetGameDetailAsync(gameId);
+            if (game == null || game.PlayId == 0)
+            {
+                return NotFound();
+            }
+            return View(game);
         }
     }
 }
