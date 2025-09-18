@@ -1,0 +1,355 @@
+using Microsoft.EntityFrameworkCore;
+using GameSpace.Models;
+using GameSpace.Areas.MiniGame.Models;
+
+namespace GameSpace.Areas.MiniGame.Services
+{
+    public class MiniGameAdminService : IMiniGameAdminService
+    {
+        private readonly GameSpacedatabaseContext _context;
+
+        public MiniGameAdminService(GameSpacedatabaseContext context)
+        {
+            _context = context;
+        }
+
+        #region User_Wallet 模組服務
+
+        public async Task<WalletSummaryReadModel> GetWalletSummaryAsync()
+        {
+            var totalUsers = await _context.Users.CountAsync();
+            var totalPoints = await _context.UserWallets.SumAsync(w => w.UserPoint);
+            var averagePoints = totalUsers > 0 ? totalPoints / totalUsers : 0;
+
+            return new WalletSummaryReadModel
+            {
+                TotalUsers = totalUsers,
+                TotalPoints = totalPoints,
+                AveragePoints = averagePoints
+            };
+        }
+
+        public async Task<PagedResult<WalletReadModel>> GetWalletsAsync(WalletQueryModel query)
+        {
+            var queryable = _context.UserWallets
+                .Include(w => w.User)
+                .ThenInclude(u => u.UserIntroduce)
+                .AsNoTracking();
+
+            if (!string.IsNullOrEmpty(query.Search))
+            {
+                queryable = queryable.Where(w => w.User.UserName.Contains(query.Search) || 
+                    (w.User.UserIntroduce != null && w.User.UserIntroduce.UserNickName.Contains(query.Search)));
+            }
+
+            var totalCount = await queryable.CountAsync();
+
+            var wallets = await queryable
+                .OrderByDescending(w => w.UserPoint)
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .Select(w => new WalletReadModel
+                {
+                    UserId = w.UserId,
+                    UserName = w.User.UserName,
+                    UserNickName = w.User.UserIntroduce != null ? w.User.UserIntroduce.UserNickName : "",
+                    UserPoint = w.UserPoint,
+                    LastUpdated = DateTime.Now
+                })
+                .ToListAsync();
+
+            return new PagedResult<WalletReadModel>
+            {
+                Items = wallets,
+                TotalCount = totalCount,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+        }
+
+        public async Task<WalletDetailReadModel?> GetWalletDetailAsync(int userId)
+        {
+            var wallet = await _context.UserWallets
+                .Include(w => w.User)
+                .ThenInclude(u => u.UserIntroduce)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.UserId == userId);
+
+            if (wallet == null) return null;
+
+            return new WalletDetailReadModel
+            {
+                UserId = wallet.UserId,
+                UserName = wallet.User.UserName,
+                UserNickName = wallet.User.UserIntroduce != null ? wallet.User.UserIntroduce.UserNickName : "",
+                UserPoint = wallet.UserPoint,
+                LastUpdated = DateTime.Now
+            };
+        }
+
+        #endregion
+
+        #region UserSignInStat 模組服務
+
+        public async Task<SignInSummaryReadModel> GetSignInSummaryAsync()
+        {
+            var totalSignIns = await _context.UserSignInStats.CountAsync();
+            var todaySignIns = await _context.UserSignInStats
+                .CountAsync(s => s.SignTime.Date == DateTime.Today);
+
+            return new SignInSummaryReadModel
+            {
+                TotalSignIns = totalSignIns,
+                TodaySignIns = todaySignIns
+            };
+        }
+
+        public async Task<PagedResult<SignInStatsReadModel>> GetSignInStatsAsync(SignInQueryModel query)
+        {
+            var queryable = _context.UserSignInStats
+                .Include(s => s.User)
+                .ThenInclude(u => u.UserIntroduce)
+                .AsNoTracking();
+
+            if (query.StartDate.HasValue)
+            {
+                queryable = queryable.Where(s => s.SignTime >= query.StartDate.Value);
+            }
+
+            if (query.EndDate.HasValue)
+            {
+                queryable = queryable.Where(s => s.SignTime <= query.EndDate.Value);
+            }
+
+            if (!string.IsNullOrEmpty(query.Search))
+            {
+                queryable = queryable.Where(s => s.User.UserName.Contains(query.Search) || 
+                    (s.User.UserIntroduce != null && s.User.UserIntroduce.UserNickName.Contains(query.Search)));
+            }
+
+            var totalCount = await queryable.CountAsync();
+
+            var signInStats = await queryable
+                .OrderByDescending(s => s.SignTime)
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .Select(s => new SignInStatsReadModel
+                {
+                    UserId = s.UserId,
+                    UserName = s.User.UserName,
+                    UserNickName = s.User.UserIntroduce != null ? s.User.UserIntroduce.UserNickName : "",
+                    SignTime = s.SignTime,
+                    SignInCount = 1 // UserSignInStat 沒有 SignInCount 屬性，使用 1
+                })
+                .ToListAsync();
+
+            return new PagedResult<SignInStatsReadModel>
+            {
+                Items = signInStats,
+                TotalCount = totalCount,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+        }
+
+        public async Task<IEnumerable<UserSignInHistoryReadModel>> GetUserSignInHistoryAsync(int userId)
+        {
+            return await _context.UserSignInStats
+                .AsNoTracking()
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.SignTime)
+                .Select(s => new UserSignInHistoryReadModel
+                {
+                    SignTime = s.SignTime,
+                    SignInCount = 1 // UserSignInStat 沒有 SignInCount 屬性，使用 1
+                })
+                .ToListAsync();
+        }
+
+        #endregion
+
+        #region Pet 模組服務
+
+        public async Task<PetSummaryReadModel> GetPetSummaryAsync()
+        {
+            var totalPets = await _context.Pets.CountAsync();
+            var activePets = await _context.Pets.CountAsync(p => p.Health > 0); // 使用 Health > 0 作為活躍狀態
+
+            return new PetSummaryReadModel
+            {
+                TotalPets = totalPets,
+                ActivePets = activePets
+            };
+        }
+
+        public async Task<PagedResult<PetReadModel>> GetPetsAsync(PetQueryModel query)
+        {
+            var queryable = _context.Pets
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserIntroduce)
+                .AsNoTracking();
+
+            if (!string.IsNullOrEmpty(query.Search))
+            {
+                queryable = queryable.Where(p => p.PetName.Contains(query.Search));
+            }
+
+            var totalCount = await queryable.CountAsync();
+
+            var pets = await queryable
+                .OrderByDescending(p => p.PetId)
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .Select(p => new PetReadModel
+                {
+                    PetId = p.PetId,
+                    PetName = p.PetName,
+                    PetStatus = p.Health > 0 ? "Active" : "Inactive",
+                    PetLevel = p.Level,
+                    PetExp = p.Experience,
+                    IsActive = p.Health > 0,
+                    OwnerName = p.User.UserIntroduce != null ? p.User.UserIntroduce.UserNickName : p.User.UserName,
+                    CreatedAt = DateTime.Now // Pet 模型沒有 CreatedAt，使用當前時間
+                })
+                .ToListAsync();
+
+            return new PagedResult<PetReadModel>
+            {
+                Items = pets,
+                TotalCount = totalCount,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+        }
+
+        public async Task<PetDetailReadModel?> GetPetDetailAsync(int petId)
+        {
+            var pet = await _context.Pets
+                .Include(p => p.User)
+                .ThenInclude(u => u.UserIntroduce)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PetId == petId);
+
+            if (pet == null) return null;
+
+            return new PetDetailReadModel
+            {
+                PetId = pet.PetId,
+                PetName = pet.PetName,
+                PetStatus = pet.Health > 0 ? "Active" : "Inactive",
+                PetLevel = pet.Level,
+                PetExp = pet.Experience,
+                IsActive = pet.Health > 0,
+                OwnerId = pet.UserId,
+                OwnerName = pet.User.UserIntroduce != null ? pet.User.UserIntroduce.UserNickName : pet.User.UserName,
+                CreatedAt = DateTime.Now, // Pet 模型沒有 CreatedAt，使用當前時間
+                LastUpdated = DateTime.Now
+            };
+        }
+
+        #endregion
+
+        #region MiniGame 模組服務
+
+        public async Task<GameSummaryReadModel> GetGameSummaryAsync()
+        {
+            var totalGames = await _context.MiniGames.CountAsync();
+            var todayGames = await _context.MiniGames
+                .CountAsync(g => g.StartTime.Date == DateTime.Today);
+
+            return new GameSummaryReadModel
+            {
+                TotalGames = totalGames,
+                TodayGames = todayGames
+            };
+        }
+
+        public async Task<PagedResult<GameRecordReadModel>> GetGameRecordsAsync(GameQueryModel query)
+        {
+            var queryable = _context.MiniGames
+                .Include(g => g.User)
+                .ThenInclude(u => u.UserIntroduce)
+                .AsNoTracking();
+
+            if (query.StartDate.HasValue)
+            {
+                queryable = queryable.Where(g => g.StartTime >= query.StartDate.Value);
+            }
+
+            if (query.EndDate.HasValue)
+            {
+                queryable = queryable.Where(g => g.StartTime <= query.EndDate.Value);
+            }
+
+            if (!string.IsNullOrEmpty(query.Result))
+            {
+                queryable = queryable.Where(g => g.Result == query.Result);
+            }
+
+            if (query.Level.HasValue)
+            {
+                queryable = queryable.Where(g => g.Level == query.Level.Value);
+            }
+
+            if (query.UserId.HasValue)
+            {
+                queryable = queryable.Where(g => g.UserId == query.UserId.Value);
+            }
+
+            var totalCount = await queryable.CountAsync();
+
+            var gameRecords = await queryable
+                .OrderByDescending(g => g.StartTime)
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .Select(g => new GameRecordReadModel
+                {
+                    PlayId = g.PlayId,
+                    UserId = g.UserId,
+                    UserName = g.User.UserName,
+                    UserNickName = g.User.UserIntroduce != null ? g.User.UserIntroduce.UserNickName : "",
+                    CardLevel = g.Level,
+                    GameResult = g.Result,
+                    PointsEarned = g.PointsGained,
+                    PetInfluence = g.PetId > 0,
+                    PlayedAt = g.StartTime
+                })
+                .ToListAsync();
+
+            return new PagedResult<GameRecordReadModel>
+            {
+                Items = gameRecords,
+                TotalCount = totalCount,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+        }
+
+        public async Task<GameDetailReadModel?> GetGameDetailAsync(int playId)
+        {
+            var game = await _context.MiniGames
+                .Include(g => g.User)
+                .ThenInclude(u => u.UserIntroduce)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(g => g.PlayId == playId);
+
+            if (game == null) return null;
+
+            return new GameDetailReadModel
+            {
+                PlayId = game.PlayId,
+                UserId = game.UserId,
+                UserName = game.User.UserName,
+                UserNickName = game.User.UserIntroduce != null ? game.User.UserIntroduce.UserNickName : "",
+                CardLevel = game.Level,
+                GameResult = game.Result,
+                PointsEarned = game.PointsGained,
+                PetInfluence = game.PetId > 0,
+                PlayedAt = game.StartTime,
+                GameData = $"Level: {game.Level}, MonsterCount: {game.MonsterCount}, SpeedMultiplier: {game.SpeedMultiplier}"
+            };
+        }
+
+        #endregion
+    }
+}

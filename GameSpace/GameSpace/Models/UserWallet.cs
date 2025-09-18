@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace GameSpace.Models;
+using System;
 
 public partial class UserWallet
 {
     public int UserId { get; set; }
-
     public int UserPoint { get; set; }
-
-    public virtual User User { get; set; } = null!;
+    
+    public virtual GameSpace.Models.User User { get; set; } = null!;
 }

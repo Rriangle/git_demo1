@@ -1,5 +1,6 @@
-﻿// ---- 服務命名空間（一般 using）----
+// ---- 服務命名空間（一般 using）----
 using GameSpace.Areas.social_hub.Services;
+using GameSpace.Areas.MiniGame.Services; // Add MiniGame Area using statement
 using GameSpace.Data;
 using GameSpace.Models;
 using Microsoft.AspNetCore.Authentication;
@@ -74,6 +75,9 @@ namespace GameSpace
 			builder.Services.AddScoped<IMuteFilterAlias, MuteFilterAlias>();
 			builder.Services.AddScoped<INotificationServiceAlias, NotificationServiceAlias>();
 			builder.Services.AddScoped<IManagerPermissionService, ManagerPermissionServiceAlias>();
+			
+			// ===== MiniGame Area Services =====
+			builder.Services.AddScoped<GameSpace.Areas.MiniGame.Services.IMiniGameService, GameSpace.Areas.MiniGame.Services.MiniGameService>();
 
 
 			// ===== CORS（可選：只有跨網域前端時才會啟用）=====
