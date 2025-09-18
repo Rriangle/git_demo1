@@ -1,122 +1,141 @@
-using GameSpace.Areas.MiniGame.Models;
-using GameSpace.Areas.MiniGame.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using GameSpace.Areas.MiniGame.Services;
+using GameSpace.Areas.MiniGame.Models;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
-    [Authorize(Policy = "CanManageShopping")] // Requires Shopping permission
+    [Authorize(AuthenticationSchemes = "AdminCookie")]
     public class AdminWalletController : Controller
     {
         private readonly IMiniGameAdminService _adminService;
-        private readonly IMiniGameAdminAuthService _authService;
 
-        public AdminWalletController(IMiniGameAdminService adminService, IMiniGameAdminAuthService authService)
+        public AdminWalletController(IMiniGameAdminService adminService)
         {
             _adminService = adminService;
-            _authService = authService;
         }
 
-        public async Task<IActionResult> Index(WalletQueryModel query)
+        public async Task<IActionResult> Index(CouponQueryModel query)
         {
-            var wallets = await _adminService.GetUserWalletsAsync(query);
-            return View(wallets);
+            var userPoints = await _adminService.QueryUserPointsAsync(query);
+            var users = await _adminService.GetUsersAsync();
+
+            var viewModel = new AdminWalletIndexViewModel
+            {
+                UserPoints = userPoints.Items,
+                Users = users,
+                SearchTerm = query.SearchTerm,
+                Page = userPoints.Page,
+                PageSize = userPoints.PageSize,
+                TotalCount = userPoints.TotalCount,
+                TotalPages = userPoints.TotalPages
+            };
+
+            return View(viewModel);
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AdjustPoints(AdminAdjustUserPointsModel model)
+        public async Task<IActionResult> AdjustPoints(int userId, int points, string reason)
         {
-            if (ModelState.IsValid)
+            var result = await _adminService.AdjustUserPointsAsync(userId, points, reason);
+            if (result)
             {
-                var success = await _adminService.AdjustUserPointsAsync(model.UserId, model.PointsChange, model.Description ?? "");
-                if (success)
-                {
-                    TempData["SuccessMessage"] = "點數調整成功";
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = "點數調整失敗";
-                }
-            }
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> IssueCoupon(AdminAdjustUserCouponModel model)
-        {
-            if (ModelState.IsValid)
-            {
-                var success = await _adminService.IssueCouponToUserAsync(model.UserId, model.CouponId, model.Quantity);
-                if (success)
-                {
-                    TempData["SuccessMessage"] = "優惠券發放成功";
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = "優惠券發放失敗";
-                }
-            }
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RemoveCoupon(int userCouponId)
-        {
-            var success = await _adminService.RemoveUserCouponAsync(userCouponId);
-            if (success)
-            {
-                TempData["SuccessMessage"] = "優惠券移除成功";
+                TempData["SuccessMessage"] = "點數調整成功";
             }
             else
             {
-                TempData["ErrorMessage"] = "優惠券移除失敗";
+                TempData["ErrorMessage"] = "點數調整失敗";
             }
             return RedirectToAction("Index");
         }
 
+        public async Task<IActionResult> AdjustCoupons()
+        {
+            var couponTypes = await _adminService.GetCouponTypesAsync();
+            var users = await _adminService.GetUsersAsync();
+
+            var viewModel = new AdminAdjustCouponsViewModel
+            {
+                CouponTypes = couponTypes,
+                Users = users
+            };
+
+            return View(viewModel);
+        }
+
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> IssueEVoucher(AdminAdjustUserEVoucherModel model)
+        public async Task<IActionResult> AdjustCoupons(AdminAdjustCouponsViewModel model)
         {
             if (ModelState.IsValid)
             {
-                var success = await _adminService.IssueEVoucherToUserAsync(model.UserId, model.EVoucherId, model.Quantity);
-                if (success)
+                bool result;
+                if (model.Action == "add")
                 {
-                    TempData["SuccessMessage"] = "電子禮券發放成功";
+                    result = await _adminService.IssueCouponToUserAsync(model.UserId, model.CouponTypeId, model.Quantity);
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = "電子禮券發放失敗";
+                    result = await _adminService.RemoveCouponFromUserAsync(model.UserId, model.CouponTypeId);
+                }
+
+                if (result)
+                {
+                    TempData["SuccessMessage"] = "優惠券調整成功";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "優惠券調整失敗";
                 }
             }
-            return RedirectToAction("Index");
+            return RedirectToAction("AdjustCoupons");
+        }
+
+        public async Task<IActionResult> AdjustEVouchers()
+        {
+            var evoucherTypes = await _adminService.GetEVoucherTypesAsync();
+            var users = await _adminService.GetUsersAsync();
+
+            var viewModel = new AdminAdjustEVouchersViewModel
+            {
+                EVoucherTypes = evoucherTypes,
+                Users = users
+            };
+
+            return View(viewModel);
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RemoveEVoucher(int userEVoucherId)
+        public async Task<IActionResult> AdjustEVouchers(AdminAdjustEVouchersViewModel model)
         {
-            var success = await _adminService.RemoveUserEVoucherAsync(userEVoucherId);
-            if (success)
+            if (ModelState.IsValid)
             {
-                TempData["SuccessMessage"] = "電子禮券移除成功";
+                bool result;
+                if (model.Action == "add")
+                {
+                    result = await _adminService.IssueEVoucherToUserAsync(model.UserId, model.EVoucherTypeId, model.Quantity);
+                }
+                else
+                {
+                    result = await _adminService.RemoveEVoucherFromUserAsync(model.UserId, model.EVoucherTypeId);
+                }
+
+                if (result)
+                {
+                    TempData["SuccessMessage"] = "電子優惠券調整成功";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "電子優惠券調整失敗";
+                }
             }
-            else
-            {
-                TempData["ErrorMessage"] = "電子禮券移除失敗";
-            }
-            return RedirectToAction("Index");
+            return RedirectToAction("AdjustEVouchers");
         }
 
-        public async Task<IActionResult> WalletHistory(WalletQueryModel query)
+        public async Task<IActionResult> TransactionHistory(CouponQueryModel query)
         {
-            var history = await _adminService.GetWalletHistoryAsync(query);
-            return View(history);
+            var transactions = await _adminService.QueryWalletTransactionsAsync(query);
+            return View(transactions);
         }
     }
 }

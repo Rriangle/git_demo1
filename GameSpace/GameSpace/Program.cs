@@ -1,4 +1,4 @@
-// ---- 服務命名空間（一般 using）----
+﻿// ---- 服務命名空間（一般 using）----
 using GameSpace.Areas.social_hub.Services;
 using GameSpace.Areas.MiniGame.Services; // Add MiniGame Area using statement
 using GameSpace.Data;

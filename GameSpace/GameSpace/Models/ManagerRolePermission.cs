@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GameSpace.Models;
@@ -20,6 +20,10 @@ public partial class ManagerRolePermission
     public bool? PetRightsManagement { get; set; }
 
     public bool? CustomerService { get; set; }
+
+    // 添加缺少的屬性
+    public bool? Pet_Rights_Management { get; set; }
+    public bool? customer_service { get; set; }
 
     public virtual ICollection<ManagerDatum> Managers { get; set; } = new List<ManagerDatum>();
 }

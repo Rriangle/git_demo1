@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
-    [Authorize(Policy = "CanAdmin")] // Requires Admin permission
+    [Authorize(Policy = "CanManageShopping")] // Requires Shopping permission
     public class AdminMiniGameController : Controller
     {
         private readonly IMiniGameAdminService _adminService;
@@ -20,19 +20,29 @@ namespace GameSpace.Areas.MiniGame.Controllers
 
         public async Task<IActionResult> Index(GameQueryModel query)
         {
-            var records = await _adminService.GetGameRecordsAsync(query);
-            return View(records);
+            var model = new AdminMiniGameIndexViewModel
+            {
+                GameRecords = await _adminService.GetGameRecordsAsync(query),
+                GameSummary = await _adminService.GetGameSummaryAsync(),
+                Query = query,
+                Sidebar = "admin"
+            };
+            return View(model);
         }
 
-        public async Task<IActionResult> SetRule()
+        public async Task<IActionResult> Rules()
         {
-            var rule = await _adminService.GetGameRuleAsync();
-            return View(rule);
+            var model = new AdminMiniGameRulesViewModel
+            {
+                GameRule = await _adminService.GetGameRuleAsync(),
+                Sidebar = "admin"
+            };
+            return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetRule(GameRuleUpdateModel model)
+        public async Task<IActionResult> UpdateRules(GameRuleUpdateModel model)
         {
             if (ModelState.IsValid)
             {
@@ -40,24 +50,23 @@ namespace GameSpace.Areas.MiniGame.Controllers
                 if (success)
                 {
                     TempData["SuccessMessage"] = "遊戲規則更新成功";
-                    return RedirectToAction("SetRule");
                 }
                 else
                 {
                     TempData["ErrorMessage"] = "遊戲規則更新失敗";
                 }
             }
-            return View(model);
+            return RedirectToAction("Rules");
         }
 
-        public async Task<IActionResult> Detail(int gameId)
+        public async Task<IActionResult> Details(int gameId)
         {
-            var game = await _adminService.GetGameDetailAsync(gameId);
-            if (game == null || game.PlayId == 0)
+            var model = new AdminMiniGameDetailsViewModel
             {
-                return NotFound();
-            }
-            return View(game);
+                Game = await _adminService.GetGameDetailAsync(gameId),
+                Sidebar = "admin"
+            };
+            return View(model);
         }
     }
 }

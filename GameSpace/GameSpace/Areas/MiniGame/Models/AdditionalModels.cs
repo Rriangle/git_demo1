@@ -12,11 +12,16 @@ namespace GameSpace.Areas.MiniGame.Models
 
     public class GameRecordReadModel
     {
-        public int PlayId { get; set; }
+        public int GameId { get; set; }
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public int Score { get; set; }
-        public DateTime PlayDate { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public string GameResult { get; set; } = string.Empty;
+        public int PointsEarned { get; set; }
+        public int ExpEarned { get; set; }
+        public string? CouponEarned { get; set; }
     }
 
     public class GameSummaryReadModel
@@ -28,12 +33,17 @@ namespace GameSpace.Areas.MiniGame.Models
 
     public class GameDetailReadModel
     {
-        public int PlayId { get; set; }
+        public int GameId { get; set; }
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public int Score { get; set; }
-        public DateTime PlayDate { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
         public string GameData { get; set; } = string.Empty;
+        public string GameResult { get; set; } = string.Empty;
+        public int PointsEarned { get; set; }
+        public int ExpEarned { get; set; }
+        public string? CouponEarned { get; set; }
     }
 
     // 寵物相關模型
@@ -50,8 +60,15 @@ namespace GameSpace.Areas.MiniGame.Models
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string PetName { get; set; } = string.Empty;
-        public int Level { get; set; }
-        public int Experience { get; set; }
+        public int PetLevel { get; set; }
+        public int PetExp { get; set; }
+        public string PetColor { get; set; } = string.Empty;
+        public string PetBackground { get; set; } = string.Empty;
+        public int Hunger { get; set; }
+        public int Happiness { get; set; }
+        public int Cleanliness { get; set; }
+        public int Energy { get; set; }
+        public int Health { get; set; }
     }
 
     public class PetSummaryReadModel
@@ -67,19 +84,29 @@ namespace GameSpace.Areas.MiniGame.Models
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string PetName { get; set; } = string.Empty;
-        public int Level { get; set; }
-        public int Experience { get; set; }
-        public string SkinColor { get; set; } = string.Empty;
-        public string BackgroundColor { get; set; } = string.Empty;
+        public int PetLevel { get; set; }
+        public int PetExp { get; set; }
+        public string PetColor { get; set; } = string.Empty;
+        public string PetBackground { get; set; } = string.Empty;
+        public int Hunger { get; set; }
+        public int Happiness { get; set; }
+        public int Cleanliness { get; set; }
+        public int Energy { get; set; }
+        public int Health { get; set; }
     }
 
     public class PetUpdateModel
     {
         public string PetName { get; set; } = string.Empty;
-        public int Level { get; set; }
-        public int Experience { get; set; }
-        public string SkinColor { get; set; } = string.Empty;
-        public string BackgroundColor { get; set; } = string.Empty;
+        public int PetLevel { get; set; }
+        public int PetExp { get; set; }
+        public string PetColor { get; set; } = string.Empty;
+        public string PetBackground { get; set; } = string.Empty;
+        public int Hunger { get; set; }
+        public int Happiness { get; set; }
+        public int Cleanliness { get; set; }
+        public int Energy { get; set; }
+        public int Health { get; set; }
     }
 
     // 錢包相關模型
@@ -111,24 +138,26 @@ namespace GameSpace.Areas.MiniGame.Models
         public string UserName { get; set; } = string.Empty;
         public int UserPoint { get; set; }
         public DateTime LastUpdated { get; set; }
-        public List<WalletTransactionReadModel> Transactions { get; set; } = new();
+        public DateTime CreatedDate { get; set; }
     }
 
     public class WalletTransactionReadModel
     {
         public int TransactionId { get; set; }
         public int UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
         public int Amount { get; set; }
         public string TransactionType { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public DateTime TransactionDate { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 
-    // 統計相關模型
     public class TopUserReadModel
     {
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
-        public int Score { get; set; }
+        public int UserPoint { get; set; }
+        public int Rank { get; set; }
     }
 }

@@ -55,7 +55,9 @@ public partial class GameSpacedatabaseContext : DbContext
 
     public virtual DbSet<ManagerDatum> ManagerData { get; set; }
 
-    public virtual DbSet<ManagerRolePermission> ManagerRolePermissions { get; set; }
+        public virtual DbSet<ManagerRolePermission> ManagerRolePermissions { get; set; }
+
+    public virtual DbSet<ManagerRole> ManagerRoles { get; set; }
 
     public virtual DbSet<MemberSalesProfile> MemberSalesProfiles { get; set; }
 
@@ -151,7 +153,9 @@ public partial class GameSpacedatabaseContext : DbContext
 
     public virtual DbSet<UserSalesInformation> UserSalesInformations { get; set; }
 
-    public virtual DbSet<UserSignInStat> UserSignInStats { get; set; }
+        public virtual DbSet<UserSignInStat> UserSignInStats { get; set; }
+
+    public virtual DbSet<SignInRule> SignInRules { get; set; }
 
     public virtual DbSet<UserToken> UserTokens { get; set; }
 
@@ -2161,3 +2165,4 @@ public partial class GameSpacedatabaseContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
+

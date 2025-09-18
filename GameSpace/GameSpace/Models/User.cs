@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GameSpace.Models;
@@ -24,6 +24,10 @@ public partial class User
     public bool UserLockoutEnabled { get; set; }
 
     public DateTime? UserLockoutEnd { get; set; }
+
+    // 添加缺少的屬性
+    public int UserPoint { get; set; } = 0;
+    public DateTime? LastUpdated { get; set; }
 
     public virtual ICollection<Bookmark> Bookmarks { get; set; } = new List<Bookmark>();
 
@@ -76,4 +80,7 @@ public partial class User
     public virtual UserSalesInformation? UserSalesInformation { get; set; }
 
     public virtual ICollection<UserToken> UserTokens { get; set; } = new List<UserToken>();
+
+    // 添加 UserWallet 關聯
+    public virtual UserWallet? UserWallet { get; set; }
 }

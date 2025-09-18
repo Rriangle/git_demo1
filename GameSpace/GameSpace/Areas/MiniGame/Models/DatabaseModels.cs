@@ -56,6 +56,9 @@ namespace GameSpace.Areas.MiniGame.Models
         [Required]
         public DateTime ExpiryDate { get; set; }
         
+        [Required]
+        public bool IsUsed { get; set; } = false;
+        
         // Navigation properties
         [ForeignKey("CouponTypeID")]
         public virtual CouponType CouponType { get; set; } = null!;
@@ -115,6 +118,9 @@ namespace GameSpace.Areas.MiniGame.Models
         
         [Required]
         public DateTime ExpiryDate { get; set; }
+        
+        [Required]
+        public bool IsRevoked { get; set; } = false;
         
         // Navigation properties
         [ForeignKey("EVoucherTypeID")]
@@ -195,6 +201,9 @@ namespace GameSpace.Areas.MiniGame.Models
         [Required]
         public DateTime TransactionDate { get; set; } = DateTime.Now;
         
+        [Required]
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        
         // Navigation properties
         [ForeignKey("UserId")]
         public virtual User User { get; set; } = null!;
@@ -240,18 +249,18 @@ namespace GameSpace.Areas.MiniGame.Models
         public string PetName { get; set; } = string.Empty;
         
         [Required]
-        public int Level { get; set; } = 1;
+        public int PetLevel { get; set; } = 1;
         
         [Required]
-        public int Experience { get; set; } = 0;
-        
-        [Required]
-        [StringLength(20)]
-        public string SkinColor { get; set; } = "Default";
+        public int PetExp { get; set; } = 0;
         
         [Required]
         [StringLength(20)]
-        public string BackgroundColor { get; set; } = "Default";
+        public string PetColor { get; set; } = "Default";
+        
+        [Required]
+        [StringLength(20)]
+        public string PetBackground { get; set; } = "Default";
         
         [Required]
         public int Hunger { get; set; } = 100;
@@ -281,7 +290,7 @@ namespace GameSpace.Areas.MiniGame.Models
     public class MiniGame
     {
         [Key]
-        public int GameID { get; set; }
+        public int GameId { get; set; }
         
         [Required]
         public int UserID { get; set; }
@@ -299,7 +308,16 @@ namespace GameSpace.Areas.MiniGame.Models
         
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "Playing"; // Playing, Completed, Aborted
+        public string GameResult { get; set; } = "Playing"; // Playing, Completed, Aborted
+        
+        [Required]
+        public int PointsEarned { get; set; } = 0;
+        
+        [Required]
+        public int ExpEarned { get; set; } = 0;
+        
+        [StringLength(100)]
+        public string? CouponEarned { get; set; }
         
         // Navigation properties
         [ForeignKey("UserID")]

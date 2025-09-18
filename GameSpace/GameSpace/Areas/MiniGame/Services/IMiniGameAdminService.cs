@@ -1,46 +1,56 @@
+using GameSpace.Models;
 using GameSpace.Areas.MiniGame.Models;
-using GameSpace.Models; // For PagedResult
 
 namespace GameSpace.Areas.MiniGame.Services
 {
     public interface IMiniGameAdminService
     {
-        // 會員點數系統相關方法
-        Task<PagedResult<WalletReadModel>> GetUserWalletsAsync(WalletQueryModel query);
-        Task<WalletSummaryReadModel> GetWalletSummaryAsync();
-        Task<WalletDetailReadModel> GetWalletDetailAsync(int userId);
-        Task<bool> AdjustUserPointsAsync(int userId, int pointsChange, string description);
-        Task<PagedResult<UserCouponReadModel>> QueryUserCouponsAsync(CouponQueryModel query);
+        // 錢包相關
+        Task<PagedResult<UserPointsReadModel>> QueryUserPointsAsync(CouponQueryModel query);
+        Task<PagedResult<CouponReadModel>> QueryUserCouponsAsync(CouponQueryModel query);
+        Task<PagedResult<EVoucherReadModel>> QueryUserEVouchersAsync(EVoucherQueryModel query);
+        Task<PagedResult<WalletTransactionReadModel>> QueryWalletTransactionsAsync(CouponQueryModel query);
+        Task<bool> AdjustUserPointsAsync(int userId, int points, string reason);
         Task<bool> IssueCouponToUserAsync(int userId, int couponTypeId, int quantity);
-        Task<bool> RemoveUserCouponAsync(int userCouponId);
-        Task<PagedResult<UserEVoucherReadModel>> QueryUserEVouchersAsync(EVoucherQueryModel query);
-        Task<bool> IssueEVoucherToUserAsync(int userId, int eVoucherTypeId, int quantity);
-        Task<bool> RemoveUserEVoucherAsync(int userEVoucherId);
-        Task<PagedResult<WalletTransactionReadModel>> GetWalletHistoryAsync(WalletQueryModel query);
+        Task<bool> IssueEVoucherToUserAsync(int userId, int evoucherTypeId, int quantity);
+        Task<bool> RemoveCouponFromUserAsync(int userId, int couponId);
+        Task<bool> RemoveEVoucherFromUserAsync(int userId, int evoucherId);
 
-        // 會員簽到系統相關方法
-        Task<SignInRuleReadModel> GetSignInRuleAsync();
+        // 簽到相關
+        Task<PagedResult<SignInStatsReadModel>> GetSignInStatsAsync(CouponQueryModel query);
+        Task<SignInRuleReadModel?> GetSignInRuleAsync();
         Task<bool> UpdateSignInRuleAsync(SignInRuleUpdateModel model);
-        Task<PagedResult<SignInStatsReadModel>> GetSignInStatsAsync(SignInQueryModel query);
-        Task<IEnumerable<UserSignInHistoryReadModel>> GetUserSignInHistoryAsync(int userId);
         Task<bool> AddUserSignInRecordAsync(int userId, DateTime signInDate);
         Task<bool> RemoveUserSignInRecordAsync(int userId, DateTime signInDate);
 
-        // 寵物系統相關方法
-        Task<PetRuleReadModel> GetPetRuleAsync();
-        Task<bool> UpdatePetRuleAsync(PetRuleUpdateModel model);
-        Task<PagedResult<PetReadModel>> GetPetsAsync(PetQueryModel query);
+        // 寵物相關
+        Task<PagedResult<PetReadModel>> GetPetsAsync(CouponQueryModel query);
         Task<PetSummaryReadModel> GetPetSummaryAsync();
-        Task<PetDetailReadModel> GetPetDetailAsync(int petId);
-        Task<bool> UpdatePetDetailsAsync(int petId, PetUpdateModel model);
-        Task<PagedResult<PetSkinColorChangeLogReadModel>> GetPetSkinColorChangeLogsAsync(PetQueryModel query);
-        Task<PagedResult<PetBackgroundColorChangeLogReadModel>> GetPetBackgroundColorChangeLogsAsync(PetQueryModel query);
+        Task<PetRuleReadModel?> GetPetRuleAsync();
+        Task<bool> UpdatePetRuleAsync(PetRuleUpdateModel model);
+        Task<PetReadModel?> GetPetDetailAsync(int petId);
+        Task<bool> UpdatePetDetailsAsync(int petId, PetReadModel model);
+        Task<List<PetSkinColorChangeLogReadModel>> GetPetSkinColorChangeLogsAsync(int petId);
+        Task<List<PetBackgroundColorChangeLogReadModel>> GetPetBackgroundColorChangeLogsAsync(int petId);
 
-        // 小遊戲系統相關方法
-        Task<GameRuleReadModel> GetGameRuleAsync();
-        Task<bool> UpdateGameRuleAsync(GameRuleUpdateModel model);
-        Task<PagedResult<GameRecordReadModel>> GetGameRecordsAsync(GameQueryModel query);
+        // 小遊戲相關
         Task<GameSummaryReadModel> GetGameSummaryAsync();
-        Task<GameDetailReadModel> GetGameDetailAsync(int gameId);
+        Task<GameRuleReadModel?> GetGameRuleAsync();
+        Task<bool> UpdateGameRuleAsync(GameRuleUpdateModel model);
+        Task<PagedResult<GameRecordReadModel>> GetGameRecordsAsync(CouponQueryModel query);
+        Task<GameRecordReadModel?> GetGameDetailAsync(int gameId);
+
+        // 用戶相關
+        Task<GameSpace.Models.User?> GetUserByIdAsync(int userId);
+        Task<List<GameSpace.Models.User>> GetUsersAsync();
+
+        // 統計相關
+        Task<WalletSummaryReadModel> GetWalletSummaryAsync();
+
+        // 獲取優惠券類型
+        Task<List<GameSpace.Models.CouponType>> GetCouponTypesAsync();
+
+        // 獲取電子優惠券類型
+        Task<List<GameSpace.Models.EVoucherType>> GetEVoucherTypesAsync();
     }
 }

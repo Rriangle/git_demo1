@@ -1,177 +1,92 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using GameSpace.Areas.MiniGame.Services;
 using GameSpace.Areas.MiniGame.Models;
-using GameSpace.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace GameSpace.Areas.MiniGame.Controllers
 {
     [Area("MiniGame")]
+    [Authorize(AuthenticationSchemes = "AdminCookie")]
     public class SignInController : Controller
     {
-        private readonly GameSpacedatabaseContext _context;
-        private readonly ILogger<SignInController> _logger;
+        private readonly IMiniGameAdminService _adminService;
 
-        public SignInController(GameSpacedatabaseContext context, ILogger<SignInController> logger)
+        public SignInController(IMiniGameAdminService adminService)
         {
-            _context = context;
-            _logger = logger;
+            _adminService = adminService;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(CouponQueryModel query)
         {
-            try
+            var signInStats = await _adminService.GetSignInStatsAsync(query);
+            var users = await _adminService.GetUsersAsync();
+
+            var viewModel = new AdminSignInIndexViewModel
             {
-                var userId = GetCurrentUserId();
-                var today = DateTime.Today;
+                SignInStats = signInStats.Items,
+                Users = users,
+                SearchTerm = query.SearchTerm,
+                Page = signInStats.Page,
+                PageSize = signInStats.PageSize,
+                TotalCount = signInStats.TotalCount,
+                TotalPages = signInStats.TotalPages
+            };
 
-                var todaySignIn = await _context.UserSignInStats
-                    .FirstOrDefaultAsync(s => s.UserId == userId && s.SignTime.Date == today);
+            return View(viewModel);
+        }
 
-                var consecutiveDays = await GetConsecutiveSignInDays(userId);
-
-                var monthStart = new DateTime(today.Year, today.Month, 1);
-                var monthSignIns = await _context.UserSignInStats
-                    .Where(s => s.UserId == userId && s.SignTime >= monthStart)
-                    .CountAsync();
-
-                var viewModel = new SignInViewModels.SignInIndexViewModel
-                {
-                    HasSignedInToday = todaySignIn != null,
-                    ConsecutiveDays = consecutiveDays,
-                    MonthSignInCount = monthSignIns,
-                    TodaySignIn = todaySignIn,
-                    SignInRewards = GetSignInRewards()
-                };
-
-                return View(viewModel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "取得簽到頁面時發生錯誤");
-                return View(new SignInViewModels.SignInIndexViewModel());
-            }
+        public async Task<IActionResult> Rules()
+        {
+            var rule = await _adminService.GetSignInRuleAsync();
+            return View(rule);
         }
 
         [HttpPost]
-        public async Task<IActionResult> SignIn()
+        public async Task<IActionResult> UpdateRule(SignInRuleUpdateModel model)
         {
-            try
+            if (ModelState.IsValid)
             {
-                var userId = GetCurrentUserId();
-                var today = DateTime.Today;
-
-                var existingSignIn = await _context.UserSignInStats
-                    .FirstOrDefaultAsync(s => s.UserId == userId && s.SignTime.Date == today);
-
-                if (existingSignIn != null)
+                var result = await _adminService.UpdateSignInRuleAsync(model);
+                if (result)
                 {
-                    return Json(new { success = false, message = "今天已經簽到過了" });
-                }
-
-                var consecutiveDays = await GetConsecutiveSignInDays(userId);
-                var newConsecutiveDays = consecutiveDays + 1;
-
-                var rewards = CalculateSignInRewards(newConsecutiveDays);
-
-                var signInRecord = new UserSignInStat
-                {
-                    UserId = userId,
-                    SignTime = today,
-                    PointsGained = rewards.Points,
-                    ExpGained = rewards.Experience
-                };
-
-                _context.UserSignInStats.Add(signInRecord);
-
-                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId);
-                if (wallet != null)
-                {
-                    wallet.UserPoint += rewards.Points;
-                }
-
-                await _context.SaveChangesAsync();
-
-                return Json(new { 
-                    success = true, 
-                    message = "簽到成功！",
-                    consecutiveDays = newConsecutiveDays,
-                    rewards = rewards
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "簽到時發生錯誤");
-                return Json(new { success = false, message = "簽到失敗" });
-            }
-        }
-
-        private async Task<int> GetConsecutiveSignInDays(int userId)
-        {
-            var today = DateTime.Today;
-            var consecutiveDays = 0;
-
-            for (int i = 0; i < 30; i++)
-            {
-                var checkDate = today.AddDays(-i);
-                var signIn = await _context.UserSignInStats
-                    .FirstOrDefaultAsync(s => s.UserId == userId && s.SignTime.Date == checkDate);
-
-                if (signIn != null)
-                {
-                    consecutiveDays++;
+                    TempData["SuccessMessage"] = "簽到規則更新成功";
                 }
                 else
                 {
-                    break;
+                    TempData["ErrorMessage"] = "簽到規則更新失敗";
                 }
             }
-
-            return consecutiveDays;
+            return RedirectToAction("Rules");
         }
 
-        private SignInReward CalculateSignInRewards(int consecutiveDays)
+        [HttpPost]
+        public async Task<IActionResult> AddSignIn(int userId, DateTime signInDate)
         {
-            var basePoints = 10;
-            var baseExp = 5;
-            var bonusMultiplier = Math.Min(consecutiveDays / 7, 3);
-
-            var points = basePoints + (consecutiveDays * 2) + (bonusMultiplier * 10);
-            var exp = baseExp + (consecutiveDays * 1) + (bonusMultiplier * 5);
-
-            string bonusReward = null;
-            if (consecutiveDays % 7 == 0 && consecutiveDays > 0)
+            var result = await _adminService.AddUserSignInRecordAsync(userId, signInDate);
+            if (result)
             {
-                bonusReward = "連續簽到獎勵！";
+                TempData["SuccessMessage"] = "簽到記錄添加成功";
             }
-            else if (consecutiveDays % 30 == 0 && consecutiveDays > 0)
+            else
             {
-                bonusReward = "月度簽到獎勵！";
+                TempData["ErrorMessage"] = "簽到記錄添加失敗";
             }
-
-            return new SignInReward
-            {
-                Points = points,
-                Experience = exp,
-                BonusReward = bonusReward
-            };
+            return RedirectToAction("Index");
         }
 
-        private List<SignInReward> GetSignInRewards()
+        [HttpPost]
+        public async Task<IActionResult> RemoveSignIn(int userId, DateTime signInDate)
         {
-            return new List<SignInReward>
+            var result = await _adminService.RemoveUserSignInRecordAsync(userId, signInDate);
+            if (result)
             {
-                new SignInReward { Day = 1, Points = 10, Experience = 5 },
-                new SignInReward { Day = 3, Points = 15, Experience = 8 },
-                new SignInReward { Day = 7, Points = 30, Experience = 15, BonusReward = "連續簽到獎勵" },
-                new SignInReward { Day = 15, Points = 50, Experience = 25 },
-                new SignInReward { Day = 30, Points = 100, Experience = 50, BonusReward = "月度簽到獎勵" }
-            };
-        }
-
-        private int GetCurrentUserId()
-        {
-            return 1;
+                TempData["SuccessMessage"] = "簽到記錄刪除成功";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "簽到記錄刪除失敗";
+            }
+            return RedirectToAction("Index");
         }
     }
 }

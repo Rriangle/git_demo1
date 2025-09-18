@@ -1,4 +1,5 @@
 using GameSpace.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace GameSpace.Areas.MiniGame.Models
 {
@@ -10,23 +11,15 @@ namespace GameSpace.Areas.MiniGame.Models
         public string Sidebar { get; set; } = "admin";
     }
 
-    public class AdminMiniGameDetailsViewModel
-    {
-        public GameDetailReadModel GameDetail { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
-    }
-
-    public class AdminMiniGameStatisticsViewModel
-    {
-        public GameSummaryReadModel Summary { get; set; } = new();
-        public List<GameRecordReadModel> RecentGames { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
-    }
-
     public class AdminMiniGameRulesViewModel
     {
-        public GameRuleReadModel Rules { get; set; } = new();
-        public GameRuleUpdateModel? UpdateModel { get; set; }
+        public GameRuleReadModel GameRule { get; set; } = new();
+        public string Sidebar { get; set; } = "admin";
+    }
+
+    public class AdminMiniGameDetailsViewModel
+    {
+        public GameDetailReadModel Game { get; set; } = new();
         public string Sidebar { get; set; } = "admin";
     }
 }

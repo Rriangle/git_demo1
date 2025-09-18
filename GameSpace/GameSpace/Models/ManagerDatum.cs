@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GameSpace.Models;
@@ -24,6 +24,10 @@ public partial class ManagerDatum
     public bool ManagerLockoutEnabled { get; set; }
 
     public DateTime? ManagerLockoutEnd { get; set; }
+
+    // 添加缺少的屬性
+    public int Manager_Id { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public virtual ICollection<Mute> Mutes { get; set; } = new List<Mute>();
 

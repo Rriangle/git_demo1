@@ -20,19 +20,29 @@ namespace GameSpace.Areas.MiniGame.Controllers
 
         public async Task<IActionResult> Index(PetQueryModel query)
         {
-            var pets = await _adminService.GetPetsAsync(query);
-            return View(pets);
+            var model = new AdminPetIndexViewModel
+            {
+                Pets = await _adminService.GetPetsAsync(query),
+                PetSummary = await _adminService.GetPetSummaryAsync(),
+                Query = query,
+                Sidebar = "admin"
+            };
+            return View(model);
         }
 
-        public async Task<IActionResult> SetRule()
+        public async Task<IActionResult> Rules()
         {
-            var rule = await _adminService.GetPetRuleAsync();
-            return View(rule);
+            var model = new AdminPetRulesViewModel
+            {
+                PetRule = await _adminService.GetPetRuleAsync(),
+                Sidebar = "admin"
+            };
+            return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetRule(PetRuleUpdateModel model)
+        public async Task<IActionResult> UpdateRules(PetRuleUpdateModel model)
         {
             if (ModelState.IsValid)
             {
@@ -40,29 +50,46 @@ namespace GameSpace.Areas.MiniGame.Controllers
                 if (success)
                 {
                     TempData["SuccessMessage"] = "寵物規則更新成功";
-                    return RedirectToAction("SetRule");
                 }
                 else
                 {
                     TempData["ErrorMessage"] = "寵物規則更新失敗";
                 }
             }
+            return RedirectToAction("Rules");
+        }
+
+        public async Task<IActionResult> Details(int petId)
+        {
+            var model = new AdminPetDetailsViewModel
+            {
+                Pet = await _adminService.GetPetDetailAsync(petId),
+                Sidebar = "admin"
+            };
             return View(model);
         }
 
-        public async Task<IActionResult> Detail(int petId)
+        [HttpGet]
+        public IActionResult Edit(int petId)
         {
-            var pet = await _adminService.GetPetDetailAsync(petId);
-            if (pet == null || pet.PetId == 0)
+            var pet = _adminService.GetPetDetailAsync(petId).Result;
+            if (pet == null)
             {
-                return NotFound();
+                TempData["ErrorMessage"] = "找不到指定的寵物";
+                return RedirectToAction("Index");
             }
-            return View(pet);
+
+            var model = new AdminPetEditViewModel
+            {
+                Pet = pet,
+                Sidebar = "admin"
+            };
+            return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Update(int petId, PetUpdateModel model)
+        public async Task<IActionResult> Edit(int petId, PetUpdateModel model)
         {
             if (ModelState.IsValid)
             {
@@ -70,26 +97,36 @@ namespace GameSpace.Areas.MiniGame.Controllers
                 if (success)
                 {
                     TempData["SuccessMessage"] = "寵物資料更新成功";
-                    return RedirectToAction("Detail", new { petId });
+                    return RedirectToAction("Details", new { petId });
                 }
                 else
                 {
                     TempData["ErrorMessage"] = "寵物資料更新失敗";
                 }
             }
-            return RedirectToAction("Detail", new { petId });
+            return View(new AdminPetEditViewModel { Pet = await _adminService.GetPetDetailAsync(petId), Sidebar = "admin" });
         }
 
-        public async Task<IActionResult> SkinColorChangeLogs(PetQueryModel query)
+        public async Task<IActionResult> SkinColorChangeLog(PetQueryModel query)
         {
-            var logs = await _adminService.GetPetSkinColorChangeLogsAsync(query);
-            return View(logs);
+            var model = new AdminPetSkinColorChangeLogViewModel
+            {
+                SkinColorChangeLogs = await _adminService.GetPetSkinColorChangeLogsAsync(query),
+                Query = query,
+                Sidebar = "admin"
+            };
+            return View(model);
         }
 
-        public async Task<IActionResult> BackgroundColorChangeLogs(PetQueryModel query)
+        public async Task<IActionResult> BackgroundColorChangeLog(PetQueryModel query)
         {
-            var logs = await _adminService.GetPetBackgroundColorChangeLogsAsync(query);
-            return View(logs);
+            var model = new AdminPetBackgroundColorChangeLogViewModel
+            {
+                BackgroundColorChangeLogs = await _adminService.GetPetBackgroundColorChangeLogsAsync(query),
+                Query = query,
+                Sidebar = "admin"
+            };
+            return View(model);
         }
     }
 }

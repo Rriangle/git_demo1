@@ -1,14 +1,16 @@
-using System.Security.Claims;
-using System.Threading.Tasks;
+using GameSpace.Models;
 
 namespace GameSpace.Areas.MiniGame.Services
 {
     public interface IMiniGameAdminAuthService
     {
-        Task<bool> HasPermissionAsync(ClaimsPrincipal user, string permissionType);
-        Task<bool> IsAdminAsync(ClaimsPrincipal user);
-        Task<bool> CanAccessAsync(int managerId);
-        Task<bool> CanAccessModuleAsync(int managerId, string moduleName);
-        int GetCurrentManagerId(ClaimsPrincipal user);
+        Task<bool> HasPermissionAsync(string permission);
+        Task<ManagerData?> GetCurrentManagerAsync();
+        Task<bool> CanManageShoppingAsync();
+        Task<bool> CanManagePetAsync();
+        Task<bool> CanManageUserStatusAsync();
+        Task<bool> CanManageCSAsync();
+        Task<bool> CanManageMessageAsync();
+        Task<bool> IsAdministratorAsync();
     }
 }
