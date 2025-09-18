@@ -14,10 +14,10 @@ namespace GameSpace.Data
         // MiniGame Area 相關的 DbSet
         public DbSet<Coupon> Coupons { get; set; }
         public DbSet<CouponType> CouponTypes { get; set; }
-        public DbSet<EVoucher> EVouchers { get; set; }
-        public DbSet<EVoucherType> EVoucherTypes { get; set; }
-        public DbSet<EVoucherToken> EVoucherTokens { get; set; }
-        public DbSet<EVoucherRedeemLog> EVoucherRedeemLogs { get; set; }
+        public DbSet<Evoucher> EVouchers { get; set; }
+        public DbSet<EvoucherType> EVoucherTypes { get; set; }
+        public DbSet<EvoucherToken> EVoucherTokens { get; set; }
+        public DbSet<EvoucherRedeemLog> EVoucherRedeemLogs { get; set; }
         public DbSet<Pet> Pets { get; set; }
         public DbSet<MiniGame> MiniGames { get; set; }
         public DbSet<SignIn> SignIns { get; set; }

@@ -1,45 +1,40 @@
-using GameSpace.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace GameSpace.Areas.MiniGame.Models
 {
     public class AdminPetIndexViewModel
     {
-        public PagedResult<PetReadModel> Pets { get; set; } = new();
-        public PetSummaryReadModel PetSummary { get; set; } = new();
-        public PetQueryModel Query { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
+        public List<GameSpace.Models.Pet> Pets { get; set; } = new();
+        public SidebarViewModel Sidebar { get; set; } = new();
     }
 
     public class AdminPetRulesViewModel
     {
-        public PetRuleReadModel PetRule { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
+        public PetRule PetRule { get; set; } = new();
+        public SidebarViewModel Sidebar { get; set; } = new();
     }
 
     public class AdminPetDetailsViewModel
     {
-        public PetDetailReadModel Pet { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
+        public GameSpace.Models.Pet Pet { get; set; } = new();
+        public SidebarViewModel Sidebar { get; set; } = new();
     }
 
     public class AdminPetEditViewModel
     {
-        public PetDetailReadModel Pet { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
+        public GameSpace.Models.Pet Pet { get; set; } = new();
+        public SidebarViewModel Sidebar { get; set; } = new();
     }
 
     public class AdminPetSkinColorChangeLogViewModel
     {
-        public PagedResult<PetSkinColorChangeLogReadModel> SkinColorChangeLogs { get; set; } = new();
-        public PetQueryModel Query { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
+        public List<PetSkinColorChangeLog> ChangeLogs { get; set; } = new();
+        public SidebarViewModel Sidebar { get; set; } = new();
     }
 
     public class AdminPetBackgroundColorChangeLogViewModel
     {
-        public PagedResult<PetBackgroundColorChangeLogReadModel> BackgroundColorChangeLogs { get; set; } = new();
-        public PetQueryModel Query { get; set; } = new();
-        public string Sidebar { get; set; } = "admin";
+        public List<PetBackgroundColorChangeLog> ChangeLogs { get; set; } = new();
+        public SidebarViewModel Sidebar { get; set; } = new();
     }
 }
