@@ -337,7 +337,41 @@ namespace GameSpace.Areas.MiniGame.Services
 
         public async Task<List<SignInRecordReadModel>> GetUserSignInHistoryAsync(int userId)
         {
-            return await GetUserSignInRecordsAsync(userId);
+                        var records = await _context.UserSignInStats
+                .Where(s => s.UserId == userId)
+                .Include(s => s.User)
+                .OrderByDescending(s => s.SignTime)
+                .ToListAsync();
+
+            return records.Select(s => new SignInRecordReadModel
+            {
+                Id = s.UserId,
+                UserId = s.UserId,
+                UserName = s.User.UserName,
+                SignInDate = s.SignTime,
+                PointsEarned = 0,
+                ConsecutiveDays = 0
+            }).ToList();" | Set-Content "Areas\MiniGame\Services\MiniGameAdminService.cs"
+q
+@"
+        public async Task<List<SignInRecordReadModel>> GetUserSignInHistoryAsync(int userId)
+        {
+            var records = await _context.UserSignInStats
+                .Where(s => s.UserId == userId)
+                .Include(s => s.User)
+                .OrderByDescending(s => s.SignTime)
+                .ToListAsync();
+
+            return records.Select(s => new SignInRecordReadModel
+            {
+                Id = s.UserId,
+                UserId = s.UserId,
+                UserName = s.User.UserName,
+                SignInDate = s.SignTime,
+                PointsEarned = 0,
+                ConsecutiveDays = 0
+            }).ToList();
+        }
         }
 
         // 寵物系統

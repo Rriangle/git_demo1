@@ -20,7 +20,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
 
         public async Task<IActionResult> Index(SignInQueryModel query)
         {
-            var stats = await _adminService.GetSignInStatsAsync(query);
+            var stats = await _adminService.GetSignInStatsAsync();
             return View(stats);
         }
 

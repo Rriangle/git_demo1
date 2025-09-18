@@ -25,7 +25,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
                 Pets = await _adminService.GetPetsAsync(query),
                 PetSummary = await _adminService.GetPetSummaryAsync(),
                 Query = query,
-                Sidebar = "admin"
+                Sidebar = new SidebarViewModel()
             };
             return View(model);
         }
@@ -35,7 +35,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
             var model = new AdminPetRulesViewModel
             {
                 PetRule = await _adminService.GetPetRuleAsync(),
-                Sidebar = "admin"
+                Sidebar = new SidebarViewModel()
             };
             return View(model);
         }
@@ -64,7 +64,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
             var model = new AdminPetDetailsViewModel
             {
                 Pet = await _adminService.GetPetDetailAsync(petId),
-                Sidebar = "admin"
+                Sidebar = new SidebarViewModel()
             };
             return View(model);
         }
@@ -82,7 +82,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
             var model = new AdminPetEditViewModel
             {
                 Pet = pet,
-                Sidebar = "admin"
+                Sidebar = new SidebarViewModel()
             };
             return View(model);
         }
@@ -104,7 +104,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
                     TempData["ErrorMessage"] = "寵物資料更新失敗";
                 }
             }
-            return View(new AdminPetEditViewModel { Pet = await _adminService.GetPetDetailAsync(petId), Sidebar = "admin" });
+            return View(new AdminPetEditViewModel { Pet = await _adminService.GetPetDetailAsync(petId), Sidebar = new SidebarViewModel() });
         }
 
         public async Task<IActionResult> SkinColorChangeLog(PetQueryModel query)
@@ -113,7 +113,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
             {
                 SkinColorChangeLogs = await _adminService.GetPetSkinColorChangeLogsAsync(query),
                 Query = query,
-                Sidebar = "admin"
+                Sidebar = new SidebarViewModel()
             };
             return View(model);
         }
@@ -124,7 +124,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
             {
                 BackgroundColorChangeLogs = await _adminService.GetPetBackgroundColorChangeLogsAsync(query),
                 Query = query,
-                Sidebar = "admin"
+                Sidebar = new SidebarViewModel()
             };
             return View(model);
         }

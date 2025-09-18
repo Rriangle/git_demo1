@@ -23,7 +23,7 @@ namespace GameSpace.Areas.MiniGame.Controllers
         public async Task<IActionResult> Index(EVoucherQueryModel query)
         {
             if (query.PageNumber <= 0) query.PageNumber = 1;
-            if (query.PageNumber <= 0) query.PageNumber = 10;
+            if (query.PageSize <= 0) query.PageSize = 10;
 
             var eVouchers = await _adminService.QueryUserEVouchersAsync(query);
 
